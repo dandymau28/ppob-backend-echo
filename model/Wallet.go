@@ -6,4 +6,5 @@ type Wallet struct {
 	gorm.Model
 	UserID  uint64
 	Balance int64
+	Uuid    string
 }

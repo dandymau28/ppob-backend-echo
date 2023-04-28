@@ -10,7 +10,7 @@ type (
 		Token    string `json:"token"`
 		Username string `json:"username"`
 		Name     string `json:"name"`
-		UserID   uint64 `json:"user_id"`
+		Uuid     string `json:"user_id"`
 	}
 
 	RegisterRequest struct {
@@ -26,7 +26,7 @@ type (
 	}
 
 	UserCredential struct {
-		ID       string
+		Uuid     string
 		Name     string
 		Username string
 		Password string

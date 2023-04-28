@@ -4,6 +4,8 @@ go 1.19
 
 require gorm.io/driver/postgres v1.4.5
 
+require github.com/google/uuid v1.3.0 // indirect
+
 require (
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect

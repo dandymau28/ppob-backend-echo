@@ -48,4 +48,16 @@ type (
 	TransactionHistoryRequest struct {
 		UserID string `param:"user_id"`
 	}
+
+	Product struct {
+		ProductName string `json:"product_name"`
+		ProductCode string `json:"product_code"`
+		Price       int64  `json:"price"`
+	}
+
+	PrePurchaseResponse struct {
+		TransactionID string  `json:"transaction_id"`
+		Product       Product `json:"product"`
+		Total         int64   `json:"total"`
+	}
 )

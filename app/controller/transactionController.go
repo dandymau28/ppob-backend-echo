@@ -7,7 +7,6 @@ import (
 	"ppob-backend/app/dto"
 	"ppob-backend/app/services/transactionServices"
 	"ppob-backend/helper"
-	"strconv"
 
 	"github.com/labstack/echo/v4"
 )
@@ -18,8 +17,6 @@ type (
 	}
 
 	TransactionController interface {
-		GetBalance(ctx echo.Context) error
-		TopupWallet(ctx echo.Context) error
 		BuyPulsa(ctx echo.Context) error
 		Webhook(ctx echo.Context) error
 		TransactionHistory(ctx echo.Context) error
@@ -30,54 +27,6 @@ func NewTransactionController(txnServices transactionServices.TransactionService
 	return &transactionController{
 		txnServices: txnServices,
 	}
-}
-
-func (c *transactionController) GetBalance(ctx echo.Context) error {
-	var (
-		request dto.GetBalanceRequest
-	)
-
-	err := ctx.Bind(&request)
-
-	if err != nil {
-		ctx.Logger().Warnf("Error on binding: %v", err.Error())
-		return echo.ErrBadRequest
-	}
-
-	response, err := c.txnServices.GetUserBalanceByUserID(request)
-
-	if err != nil {
-		ctx.Logger().Warnf("GetBalance controller: %v", err.Error())
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Something went wrong: %v", err.Error()))
-	}
-
-	responseBuild := helper.BuildResponse(http.StatusOK, "success", response)
-
-	return ctx.JSON(http.StatusOK, responseBuild)
-}
-
-func (c *transactionController) TopupWallet(ctx echo.Context) error {
-	var (
-		request dto.TopupWalletRequest
-	)
-
-	err := ctx.Bind(&request)
-
-	if err != nil {
-		ctx.Logger().Warnf("Error on binding: %v", err.Error())
-		return echo.ErrBadRequest
-	}
-
-	response, err := c.txnServices.TopupWallet(request)
-
-	if err != nil {
-		ctx.Logger().Warnf("TopupWallet controller: %v", err.Error())
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Something went wrong: %v", err.Error()))
-	}
-
-	responseBuild := helper.BuildResponse(http.StatusOK, "success", response)
-
-	return ctx.JSON(http.StatusOK, responseBuild)
 }
 
 func (c *transactionController) BuyPulsa(ctx echo.Context) error {
@@ -92,9 +41,9 @@ func (c *transactionController) BuyPulsa(ctx echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	user_id, _ := strconv.ParseUint(request.UserID, 10, 64)
+	user_id := request.UserID
 
-	response, err := c.txnServices.DoTransaction(request.ProductCode, request.CustomerNo, uint(user_id))
+	response, err := c.txnServices.DoTransaction(request.ProductCode, request.CustomerNo, user_id)
 
 	if err != nil {
 		ctx.Logger().Warnf("TopupWallet controller: %v", err.Error())
@@ -118,7 +67,7 @@ func (c *transactionController) TransactionHistory(ctx echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	user_id, _ := strconv.ParseUint(request.UserID, 10, 64)
+	user_id := request.UserID
 
 	response, err := c.txnServices.GetTransactionHistory(user_id)
 

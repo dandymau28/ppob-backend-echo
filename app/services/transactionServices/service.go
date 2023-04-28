@@ -8,7 +8,6 @@ import (
 	dfwebclientservices "ppob-backend/app/services/dfWebClientServices"
 	"ppob-backend/config"
 	"ppob-backend/model"
-	"strconv"
 	"sync"
 	"time"
 
@@ -27,8 +26,8 @@ type (
 	TransactionServices interface {
 		GetUserBalanceByUserID(request dto.GetBalanceRequest) (dto.GetBalanceResponse, error)
 		TopupWallet(request dto.TopupWalletRequest) (dto.TopupWalletResponse, error)
-		DoTransaction(product_code string, customer_no string, user_id uint) (dto.DoTransactionResponse, error)
-		GetTransactionHistory(user_id uint64) ([]model.Transaction, error)
+		DoTransaction(product_code string, customer_no string, user_id string) (dto.DoTransactionResponse, error)
+		GetTransactionHistory(user_id string) ([]model.Transaction, error)
 		WebhookHandle(headers dto.WebhookHeaders, body dto.WebhookRequestBody) error
 	}
 )
@@ -46,7 +45,7 @@ func (s *transactionServices) GetUserBalanceByUserID(request dto.GetBalanceReque
 		response = dto.GetBalanceResponse{}
 	)
 
-	userID, _ := strconv.ParseUint(request.UserID, 10, 64)
+	userID := request.UserID
 
 	userBalance := s.txnRepository.GetUserBalance(userID)
 
@@ -65,9 +64,9 @@ func (s *transactionServices) TopupWallet(request dto.TopupWalletRequest) (dto.T
 		wallet   = model.Wallet{}
 	)
 
-	userID, _ := strconv.ParseUint(request.UserID, 10, 64)
+	userID := request.UserID
 
-	wallet.UserID = userID
+	wallet.Uuid = userID
 
 	s.Mutex.Lock()
 	err := s.txnRepository.GetWalletByUserID(&wallet)
@@ -103,7 +102,7 @@ func (s *transactionServices) TopupWallet(request dto.TopupWalletRequest) (dto.T
 	return response, nil
 }
 
-func (s *transactionServices) DoTransaction(product_code string, customer_no string, user_id uint) (dto.DoTransactionResponse, error) {
+func (s *transactionServices) DoTransaction(product_code string, customer_no string, user_id string) (dto.DoTransactionResponse, error) {
 	/*
 		- get wallet
 		- get product price
@@ -117,7 +116,7 @@ func (s *transactionServices) DoTransaction(product_code string, customer_no str
 		balanceAfter int64
 	)
 
-	userBalance := s.txnRepository.GetUserBalance(uint64(user_id))
+	userBalance := s.txnRepository.GetUserBalance(user_id)
 
 	product := s.txnRepository.GetProductByProductCode(product_code)
 
@@ -201,7 +200,7 @@ func (s *transactionServices) DoTransaction(product_code string, customer_no str
 	return response, nil
 }
 
-func (s *transactionServices) GetTransactionHistory(user_id uint64) ([]model.Transaction, error) {
+func (s *transactionServices) GetTransactionHistory(user_id string) ([]model.Transaction, error) {
 	var (
 		response = []model.Transaction{}
 	)
@@ -214,6 +213,10 @@ func (s *transactionServices) GetTransactionHistory(user_id uint64) ([]model.Tra
 	}
 
 	return response, nil
+}
+
+func (s *transactionServices) PrePurchase(product_code string, customer_no string, user_id string) {
+
 }
 
 func (s *transactionServices) WebhookHandle(headers dto.WebhookHeaders, body dto.WebhookRequestBody) error {

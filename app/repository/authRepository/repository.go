@@ -42,6 +42,7 @@ func (r *authRepository) CreateWallet(user *model.User) error {
 	wallet := model.Wallet{
 		UserID:  uint64(user.ID),
 		Balance: 0,
+		Uuid:    user.Uuid,
 	}
 
 	result := r.db.Create(&wallet)

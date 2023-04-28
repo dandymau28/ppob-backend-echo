@@ -5,9 +5,11 @@ import (
 	"ppob-backend/app/controller"
 	"ppob-backend/app/repository/authRepository"
 	"ppob-backend/app/repository/transactionRepository"
+	"ppob-backend/app/repository/walletRepository"
 	authService "ppob-backend/app/services/authServices"
 	dfwebclientservices "ppob-backend/app/services/dfWebClientServices"
 	"ppob-backend/app/services/transactionServices"
+	"ppob-backend/app/services/walletServices"
 	"ppob-backend/config"
 
 	"github.com/go-playground/validator/v10"
@@ -18,15 +20,18 @@ import (
 )
 
 var (
-	configSystem   *config.SystemConfig                        = config.LoadEnv()
-	dbConn         *gorm.DB                                    = config.ConnectDB(configSystem)
-	dfWebClient    dfwebclientservices.DfWebClient             = dfwebclientservices.NewDfWebClient(configSystem)
-	authRepo       authRepository.AuthRepository               = authRepository.NewAuthRepository(dbConn)
-	authServ       authService.AuthService                     = authService.NewAuthService(configSystem, authRepo)
-	authController controller.AuthController                   = controller.NewAuthController(configSystem, authServ)
-	txnRepo        transactionRepository.TransactionRepository = transactionRepository.NewTransactionRepository(dbConn)
-	txnServ        transactionServices.TransactionServices     = transactionServices.NewTransactionServices(configSystem, txnRepo, dfWebClient)
-	txnController  controller.TransactionController            = controller.NewTransactionController(txnServ)
+	configSystem     *config.SystemConfig                        = config.LoadEnv()
+	dbConn           *gorm.DB                                    = config.ConnectDB(configSystem)
+	dfWebClient      dfwebclientservices.DfWebClient             = dfwebclientservices.NewDfWebClient(configSystem)
+	authRepo         authRepository.AuthRepository               = authRepository.NewAuthRepository(dbConn)
+	authServ         authService.AuthService                     = authService.NewAuthService(configSystem, authRepo)
+	authController   controller.AuthController                   = controller.NewAuthController(configSystem, authServ)
+	walletRepo       walletRepository.WalletRepository           = walletRepository.NewWalletRepository(dbConn)
+	walletServ       walletServices.WalletServices               = walletServices.NewWalletServices(configSystem, walletRepo)
+	walletController controller.WalletController                 = controller.NewWalletController(walletServ)
+	txnRepo          transactionRepository.TransactionRepository = transactionRepository.NewTransactionRepository(dbConn)
+	txnServ          transactionServices.TransactionServices     = transactionServices.NewTransactionServices(configSystem, txnRepo, dfWebClient)
+	txnController    controller.TransactionController            = controller.NewTransactionController(txnServ)
 )
 
 type (
@@ -76,10 +81,13 @@ func main() {
 	v1.Use(middleware.JWTWithConfig(config))
 
 	trxRoute := v1.Group("/transactions")
-	trxRoute.GET("/:user_id/wallet", txnController.GetBalance)
-	trxRoute.POST("/:user_id/wallet/topup", txnController.TopupWallet)
-	trxRoute.POST("/buy-pulsa", txnController.BuyPulsa)
+	trxRoute.POST("/pre-purchase", txnController.BuyPulsa)
+	// trxRoute.POST("/purchase/:trx_id", txnController)
 	trxRoute.GET("/:user_id/history", txnController.TransactionHistory)
+
+	walletRoute := v1.Group("/wallets")
+	walletRoute.GET("/:user_id/balance", walletController.GetBalance)
+	walletRoute.POST("/:user_id/topup", walletController.TopupWallet)
 
 	e.Logger.Fatal(e.Start(":1323"))
 }

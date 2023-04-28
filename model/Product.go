@@ -20,4 +20,5 @@ type Product struct {
 	StartCutOff         string
 	EndCutOff           string
 	Desc                string
+	Uuid                string
 }

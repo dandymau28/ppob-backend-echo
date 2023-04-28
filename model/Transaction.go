@@ -5,7 +5,7 @@ import "gorm.io/gorm"
 type Transaction struct {
 	gorm.Model
 	RefId           string
-	UserId          uint
+	UserId          string
 	CustomerNo      string
 	BuyerSkuCode    string
 	PricePaid       int64

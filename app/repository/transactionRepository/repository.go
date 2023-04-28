@@ -13,14 +13,14 @@ type (
 	}
 
 	TransactionRepository interface {
-		GetUserBalance(userID uint64) dto.GetUserBalance
+		GetUserBalance(user_id string) dto.GetUserBalance
 		UpdateWallet(wallet *model.Wallet) error
 		GetWalletByUserID(wallet *model.Wallet) error
 		GetProductByProductCode(product_code string) model.Product
 		SaveTransaction(txn *model.Transaction) error
 		UpdateTransaction(txn *model.Transaction) error
 		GetTransactionByRefID(ref_id string) model.Transaction
-		GetTransactionHistoryByUserID(user_id uint64) ([]model.Transaction, error)
+		GetTransactionHistoryByUserID(user_id string) ([]model.Transaction, error)
 	}
 )
 
@@ -30,10 +30,10 @@ func NewTransactionRepository(db *gorm.DB) TransactionRepository {
 	}
 }
 
-func (r *transactionRepository) GetUserBalance(user_id uint64) dto.GetUserBalance {
+func (r *transactionRepository) GetUserBalance(user_id string) dto.GetUserBalance {
 	userBalance := dto.GetUserBalance{}
 
-	r.db.Model(&model.User{}).Select("users.name, users.username, wallets.balance").Joins("join wallets on wallets.user_id = users.id").Where("users.id = ?", user_id).Limit(1).Find(&userBalance)
+	r.db.Model(&model.User{}).Select("users.name, users.username, wallets.balance").Joins("join wallets on wallets.user_id = users.id").Where("users.uuid = ?", user_id).Limit(1).Find(&userBalance)
 
 	return userBalance
 }
@@ -79,7 +79,7 @@ func (r *transactionRepository) GetTransactionByRefID(ref_id string) model.Trans
 	return txn
 }
 
-func (r *transactionRepository) GetTransactionHistoryByUserID(user_id uint64) ([]model.Transaction, error) {
+func (r *transactionRepository) GetTransactionHistoryByUserID(user_id string) ([]model.Transaction, error) {
 	txn := []model.Transaction{}
 
 	result := r.db.Where("user_id = ?", user_id).Find(&txn)

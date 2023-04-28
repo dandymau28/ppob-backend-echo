@@ -6,10 +6,10 @@ import (
 	"ppob-backend/app/repository/authRepository"
 	"ppob-backend/config"
 	"ppob-backend/model"
-	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -66,23 +66,27 @@ func (s *authService) Login(request dto.LoginRequest) (dto.LoginResponse, error)
 		return emptyResponse, errors.New("failed to sign token")
 	}
 
-	userID, _ := strconv.ParseUint(credential.ID, 10, 64)
+	// userID, _ := strconv.ParseUint(credential.ID, 10, 64)
 
 	response := dto.LoginResponse{
 		Username: request.Username,
 		Name:     credential.Name,
 		Token:    t,
-		UserID:   userID,
+		Uuid:     credential.Uuid,
 	}
 	return response, err
 }
 
 func (s *authService) Register(request dto.RegisterRequest) (dto.RegisterResponse, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
+
+	uuid := uuid.New()
+
 	user := model.User{
 		Name:     request.Name,
 		Username: request.Username,
 		Password: string(hashedPassword),
+		Uuid:     uuid.String(),
 	}
 	response := dto.RegisterResponse{}
 
