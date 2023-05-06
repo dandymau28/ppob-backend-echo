@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"ppob-backend/app/controller"
+	"ppob-backend/app/dto"
 	"ppob-backend/app/repository/authRepository"
 	"ppob-backend/app/repository/transactionRepository"
 	"ppob-backend/app/repository/walletRepository"
@@ -13,7 +14,6 @@ import (
 	"ppob-backend/config"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"gorm.io/gorm"
@@ -38,11 +38,6 @@ type (
 	CustomValidator struct {
 		validator *validator.Validate
 	}
-
-	jwtCustomClaims struct {
-		Username string `json:"username"`
-		jwt.StandardClaims
-	}
 )
 
 func (cv *CustomValidator) Validate(i interface{}) error {
@@ -64,7 +59,7 @@ func main() {
 
 	// Configure middleware with the custom claims type
 	config := middleware.JWTConfig{
-		Claims:     &jwtCustomClaims{},
+		Claims:     &dto.JwtCustomClaims{},
 		SigningKey: []byte(configSystem.JwtSecret),
 	}
 
@@ -81,8 +76,8 @@ func main() {
 	v1.Use(middleware.JWTWithConfig(config))
 
 	trxRoute := v1.Group("/transactions")
-	trxRoute.POST("/pre-purchase", txnController.BuyPulsa)
-	// trxRoute.POST("/purchase/:trx_id", txnController)
+	trxRoute.POST("/pre-purchase", txnController.PrePurchase)
+	// trxRoute.POST("/purchase/:trx_id", txnController.)
 	trxRoute.GET("/:user_id/history", txnController.TransactionHistory)
 
 	walletRoute := v1.Group("/wallets")

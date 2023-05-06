@@ -8,6 +8,7 @@ import (
 	"ppob-backend/app/services/transactionServices"
 	"ppob-backend/helper"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 )
 
@@ -18,6 +19,7 @@ type (
 
 	TransactionController interface {
 		BuyPulsa(ctx echo.Context) error
+		PrePurchase(ctx echo.Context) error
 		Webhook(ctx echo.Context) error
 		TransactionHistory(ctx echo.Context) error
 	}
@@ -44,6 +46,34 @@ func (c *transactionController) BuyPulsa(ctx echo.Context) error {
 	user_id := request.UserID
 
 	response, err := c.txnServices.DoTransaction(request.ProductCode, request.CustomerNo, user_id)
+
+	if err != nil {
+		ctx.Logger().Warnf("TopupWallet controller: %v", err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Something went wrong: %v", err.Error()))
+	}
+
+	responseBuild := helper.BuildResponse(http.StatusOK, "success", response)
+
+	return ctx.JSON(http.StatusOK, responseBuild)
+}
+
+func (c *transactionController) PrePurchase(ctx echo.Context) error {
+	var (
+		request dto.PrePurchaseRequest
+	)
+
+	err := ctx.Bind(&request)
+
+	if err != nil {
+		ctx.Logger().Warnf("Error on binding: %v", err.Error())
+		return echo.ErrBadRequest
+	}
+
+	user := ctx.Get("user").(*jwt.Token)
+	claims := user.Claims.(*dto.JwtCustomClaims)
+	user_id := claims.UserID
+
+	response, err := c.txnServices.PrePurchase(request.ProductCode, request.CustomerNo, user_id)
 
 	if err != nil {
 		ctx.Logger().Warnf("TopupWallet controller: %v", err.Error())

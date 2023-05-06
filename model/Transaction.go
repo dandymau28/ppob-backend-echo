@@ -6,6 +6,7 @@ type Transaction struct {
 	gorm.Model
 	RefId           string
 	UserId          string
+	TransactionId   string
 	CustomerNo      string
 	BuyerSkuCode    string
 	PricePaid       int64

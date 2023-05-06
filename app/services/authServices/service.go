@@ -23,11 +23,6 @@ type (
 		Login(request dto.LoginRequest) (dto.LoginResponse, error)
 		Register(request dto.RegisterRequest) (dto.RegisterResponse, error)
 	}
-
-	jwtCustomClaims struct {
-		Username string `json:"username"`
-		jwt.StandardClaims
-	}
 )
 
 func NewAuthService(config *config.SystemConfig, authRepository authRepository.AuthRepository) AuthService {
@@ -51,9 +46,10 @@ func (s *authService) Login(request dto.LoginRequest) (dto.LoginResponse, error)
 		return emptyResponse, errors.New("username/password mismatch")
 	}
 
-	claims := &jwtCustomClaims{
-		request.Username,
-		jwt.StandardClaims{
+	claims := &dto.JwtCustomClaims{
+		Username: request.Username,
+		UserID:   credential.Uuid,
+		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
 		},
 	}

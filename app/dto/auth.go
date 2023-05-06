@@ -1,5 +1,7 @@
 package dto
 
+import "github.com/golang-jwt/jwt"
+
 type (
 	LoginRequest struct {
 		Username string `json:"username"`
@@ -30,5 +32,11 @@ type (
 		Name     string
 		Username string
 		Password string
+	}
+
+	JwtCustomClaims struct {
+		Username string `json:"username"`
+		UserID   string `json:"user_id"`
+		jwt.StandardClaims
 	}
 )

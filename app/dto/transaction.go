@@ -55,6 +55,11 @@ type (
 		Price       int64  `json:"price"`
 	}
 
+	PrePurchaseRequest struct {
+		ProductCode string `json:"product_code"`
+		CustomerNo  string `json:"customer_no"`
+	}
+
 	PrePurchaseResponse struct {
 		TransactionID string  `json:"transaction_id"`
 		Product       Product `json:"product"`

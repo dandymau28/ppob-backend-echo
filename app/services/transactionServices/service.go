@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -26,6 +27,7 @@ type (
 	TransactionServices interface {
 		GetUserBalanceByUserID(request dto.GetBalanceRequest) (dto.GetBalanceResponse, error)
 		TopupWallet(request dto.TopupWalletRequest) (dto.TopupWalletResponse, error)
+		PrePurchase(product_code string, customer_no string, user_id string) (dto.PrePurchaseResponse, error)
 		DoTransaction(product_code string, customer_no string, user_id string) (dto.DoTransactionResponse, error)
 		GetTransactionHistory(user_id string) ([]model.Transaction, error)
 		WebhookHandle(headers dto.WebhookHeaders, body dto.WebhookRequestBody) error
@@ -215,8 +217,54 @@ func (s *transactionServices) GetTransactionHistory(user_id string) ([]model.Tra
 	return response, nil
 }
 
-func (s *transactionServices) PrePurchase(product_code string, customer_no string, user_id string) {
+func (s *transactionServices) PrePurchase(product_code string, customer_no string, user_id string) (dto.PrePurchaseResponse, error) {
+	/*
+		- get wallet
+		- get product price
+		- if wallet balance less than price, failed
+		- sub wallet balance to price
+		- call digiflazz api
+		- return response
+	*/
+	var (
+		response = dto.PrePurchaseResponse{}
+	)
 
+	userBalance := s.txnRepository.GetUserBalance(user_id)
+
+	product := s.txnRepository.GetProductByProductCode(product_code)
+
+	if product.SellerPrice > userBalance.Balance {
+		return response, errors.New("insufficient wallet balance")
+	}
+
+	txn := model.Transaction{}
+
+	txnId := uuid.New()
+
+	txn.BuyerSkuCode = product_code
+	txn.CustomerNo = customer_no
+	txn.PriceDist = product.Price
+	txn.PricePaid = product.SellerPrice
+	txn.UserId = user_id
+	txn.CreatedAt = time.Now()
+	txn.TransactionId = txnId.String()
+	txn.Status = "SIMULATED"
+
+	err := s.txnRepository.SaveTransaction(&txn)
+
+	if err != nil {
+		s.ctx.Logger().Warnf("failed to save transaction: %v", err)
+		return response, err
+	}
+
+	response.Product.Price = product.SellerPrice
+	response.Product.ProductCode = product.BuyerSkuCode
+	response.Product.ProductName = product.ProductName
+	response.Total = product.SellerPrice
+	response.TransactionID = txn.TransactionId
+
+	return response, nil
 }
 
 func (s *transactionServices) WebhookHandle(headers dto.WebhookHeaders, body dto.WebhookRequestBody) error {
