@@ -18,7 +18,7 @@ type (
 	}
 
 	TransactionController interface {
-		BuyPulsa(ctx echo.Context) error
+		Purchase(ctx echo.Context) error
 		PrePurchase(ctx echo.Context) error
 		Webhook(ctx echo.Context) error
 		TransactionHistory(ctx echo.Context) error
@@ -31,9 +31,9 @@ func NewTransactionController(txnServices transactionServices.TransactionService
 	}
 }
 
-func (c *transactionController) BuyPulsa(ctx echo.Context) error {
+func (c *transactionController) Purchase(ctx echo.Context) error {
 	var (
-		request dto.BuyPulsaRequest
+		request dto.PurchaseRequest
 	)
 
 	err := ctx.Bind(&request)
@@ -43,9 +43,11 @@ func (c *transactionController) BuyPulsa(ctx echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	user_id := request.UserID
+	user := ctx.Get("user").(*jwt.Token)
+	claims := user.Claims.(*dto.JwtCustomClaims)
+	user_id := claims.UserID
 
-	response, err := c.txnServices.DoTransaction(request.ProductCode, request.CustomerNo, user_id)
+	response, err := c.txnServices.DoTransaction(request.TrxID, user_id)
 
 	if err != nil {
 		ctx.Logger().Warnf("TopupWallet controller: %v", err.Error())
