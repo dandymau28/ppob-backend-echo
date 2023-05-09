@@ -8,6 +8,7 @@ import (
 	dfwebclientservices "ppob-backend/app/services/dfWebClientServices"
 	"ppob-backend/config"
 	"ppob-backend/model"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,13 +23,14 @@ type (
 		ctx           echo.Context
 		Mutex         sync.Mutex
 		dfWebClient   dfwebclientservices.DfWebClient
+		TAG           string
 	}
 
 	TransactionServices interface {
 		GetUserBalanceByUserID(request dto.GetBalanceRequest) (dto.GetBalanceResponse, error)
 		TopupWallet(request dto.TopupWalletRequest) (dto.TopupWalletResponse, error)
 		PrePurchase(product_code string, customer_no string, user_id string) (dto.PrePurchaseResponse, error)
-		DoTransaction(product_code string, customer_no string, user_id string) (dto.DoTransactionResponse, error)
+		DoTransaction(ref_id string, user_id string) (dto.DoTransactionResponse, error)
 		GetTransactionHistory(user_id string) ([]model.Transaction, error)
 		WebhookHandle(headers dto.WebhookHeaders, body dto.WebhookRequestBody) error
 	}
@@ -39,6 +41,8 @@ func NewTransactionServices(config *config.SystemConfig, txnRepo transactionRepo
 		txnRepository: txnRepo,
 		Config:        config,
 		dfWebClient:   dfWebClient,
+		TAG:           "services.transaction-services",
+		ctx:           echo.New().AcquireContext(),
 	}
 }
 
@@ -61,6 +65,9 @@ func (s *transactionServices) GetUserBalanceByUserID(request dto.GetBalanceReque
 }
 
 func (s *transactionServices) TopupWallet(request dto.TopupWalletRequest) (dto.TopupWalletResponse, error) {
+	defer echo.New().ReleaseContext(s.ctx)
+
+	s.ctx.Logger().Infof("%s Start Topup Wallet for %s", s.TAG, request.UserID)
 	var (
 		response = dto.TopupWalletResponse{}
 		wallet   = model.Wallet{}
@@ -75,6 +82,8 @@ func (s *transactionServices) TopupWallet(request dto.TopupWalletRequest) (dto.T
 	balanceBefore := wallet.Balance
 
 	if err != nil {
+		s.Mutex.Unlock()
+		s.ctx.Logger().Infof("%v err getting wallet %v number %v", s.TAG, err, request.UserID)
 		return response, errors.New("failed to get wallet")
 	}
 
@@ -82,12 +91,15 @@ func (s *transactionServices) TopupWallet(request dto.TopupWalletRequest) (dto.T
 
 	if wallet.Balance < 0 {
 		s.Mutex.Unlock()
+		s.ctx.Logger().Infof("%v err number %v insufficient balance %v", s.TAG, request.UserID, wallet.Balance)
 		return response, errors.New("insufficient balance")
 	}
 
 	err = s.txnRepository.UpdateWallet(&wallet)
 
 	if err != nil {
+		s.Mutex.Unlock()
+		s.ctx.Logger().Infof("%v err number %v update wallet %v", s.TAG, request.UserID, err)
 		return response, errors.New("failed to update wallet")
 	}
 	s.Mutex.Unlock()
@@ -104,10 +116,10 @@ func (s *transactionServices) TopupWallet(request dto.TopupWalletRequest) (dto.T
 	return response, nil
 }
 
-func (s *transactionServices) DoTransaction(product_code string, customer_no string, user_id string) (dto.DoTransactionResponse, error) {
+func (s *transactionServices) DoTransaction(trx_id string, user_id string) (dto.DoTransactionResponse, error) {
 	/*
 		- get wallet
-		- get product price
+		- get simulated transaction
 		- if wallet balance less than price, failed
 		- sub wallet balance to price
 		- call digiflazz api
@@ -120,15 +132,19 @@ func (s *transactionServices) DoTransaction(product_code string, customer_no str
 
 	userBalance := s.txnRepository.GetUserBalance(user_id)
 
-	product := s.txnRepository.GetProductByProductCode(product_code)
+	txn := s.txnRepository.GetTransactionByTrxID(trx_id)
 
-	if product.SellerPrice > userBalance.Balance {
+	if txn.Status != "SIMULATED" {
+		return response, errors.New("invalid transaction")
+	}
+
+	if txn.PricePaid > userBalance.Balance {
 		return response, errors.New("insufficient wallet balance")
 	}
 
 	topupWallet := dto.TopupWalletRequest{
 		UserID: fmt.Sprint(user_id),
-		Amount: product.Price * -1,
+		Amount: txn.PricePaid * -1,
 	}
 
 	topupResp, err := s.TopupWallet(topupWallet)
@@ -138,8 +154,8 @@ func (s *transactionServices) DoTransaction(product_code string, customer_no str
 	}
 
 	payload := dto.BuyProductPayload{
-		BuyerSkuCode: product_code,
-		CustomerNo:   customer_no,
+		BuyerSkuCode: txn.BuyerSkuCode,
+		CustomerNo:   txn.CustomerNo,
 	}
 
 	respDf, err := s.dfWebClient.Topup(payload)
@@ -149,7 +165,7 @@ func (s *transactionServices) DoTransaction(product_code string, customer_no str
 	if err != nil {
 		refundWallet := dto.TopupWalletRequest{
 			UserID: fmt.Sprint(user_id),
-			Amount: product.Price,
+			Amount: txn.PricePaid,
 		}
 
 		//TODO: need to be enhanced when refund failed
@@ -162,7 +178,7 @@ func (s *transactionServices) DoTransaction(product_code string, customer_no str
 	if respDf.Rc != "00" && respDf.Status == "Gagal" {
 		refundWallet := dto.TopupWalletRequest{
 			UserID: fmt.Sprint(user_id),
-			Amount: product.Price,
+			Amount: txn.PricePaid,
 		}
 
 		respRefund, _ := s.TopupWallet(refundWallet)
@@ -170,23 +186,16 @@ func (s *transactionServices) DoTransaction(product_code string, customer_no str
 		balanceAfter = respRefund.Balance
 	}
 
-	txn := model.Transaction{}
-
-	txn.BuyerSkuCode = product_code
-	txn.CustomerNo = customer_no
-	txn.PriceDist = product.Price
-	txn.PricePaid = product.SellerPrice
 	txn.BalanceBefore = topupResp.BalanceBefore
 	txn.BalanceAfter = balanceAfter
 	txn.RefId = respDf.RefId
 	txn.ResponseCode = respDf.Rc
 	txn.ResponseMessage = respDf.Message
 	txn.Sn = respDf.Sn
-	txn.Status = respDf.Status
-	txn.UserId = user_id
-	txn.CreatedAt = time.Now()
+	txn.Status = strings.ToUpper(respDf.Status)
+	txn.UpdatedAt = time.Now()
 
-	err = s.txnRepository.SaveTransaction(&txn)
+	err = s.txnRepository.UpdateTransaction(&txn)
 
 	if err != nil {
 		s.ctx.Logger().Warnf("failed to save transaction: %v", err)
@@ -195,7 +204,7 @@ func (s *transactionServices) DoTransaction(product_code string, customer_no str
 
 	response.Balance = txn.BalanceAfter
 	response.Price = txn.PricePaid
-	response.ProductName = product.ProductName
+	response.ProductName = txn.BuyerSkuCode
 	response.Status = txn.Status
 	response.TransactionAt = txn.CreatedAt
 
@@ -282,10 +291,10 @@ func (s *transactionServices) WebhookHandle(headers dto.WebhookHeaders, body dto
 
 	if txn.CustomerNo == "" {
 		s.ctx.Logger().Warnf("no transaction found")
-		return errors.New("no transaction found")
+		return nil
 	}
 
-	txn.Status = body.Status
+	txn.Status = strings.ToUpper(body.Status)
 	txn.Sn = body.Sn
 	txn.ResponseCode = body.Rc
 	txn.ResponseMessage = body.Message
@@ -303,7 +312,7 @@ func (s *transactionServices) WebhookHandle(headers dto.WebhookHeaders, body dto
 	err := s.txnRepository.UpdateTransaction(&txn)
 	if err != nil {
 		s.ctx.Logger().Warnf("failed to update transaction: %v", err)
-		return err
+		return nil
 	}
 
 	return nil
