@@ -21,6 +21,7 @@ type (
 		UpdateTransaction(txn *model.Transaction) error
 		GetTransactionByRefID(ref_id string) model.Transaction
 		GetTransactionHistoryByUserID(user_id string) ([]model.Transaction, error)
+		GetTransactionByTrxID(trx_id string) model.Transaction
 	}
 )
 
@@ -70,11 +71,17 @@ func (r *transactionRepository) UpdateTransaction(txn *model.Transaction) error 
 }
 
 func (r *transactionRepository) GetTransactionByRefID(ref_id string) model.Transaction {
-	txn := model.Transaction{
-		RefId: ref_id,
-	}
+	txn := model.Transaction{}
 
-	r.db.First(&txn)
+	r.db.First(&txn, "ref_id = ?", ref_id)
+
+	return txn
+}
+
+func (r *transactionRepository) GetTransactionByTrxID(trx_id string) model.Transaction {
+	txn := model.Transaction{}
+
+	r.db.First(&txn, "transaction_id = ?", trx_id)
 
 	return txn
 }
