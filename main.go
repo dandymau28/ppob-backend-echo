@@ -77,7 +77,7 @@ func main() {
 
 	trxRoute := v1.Group("/transactions")
 	trxRoute.POST("/pre-purchase", txnController.PrePurchase)
-	// trxRoute.POST("/purchase/:trx_id", txnController.)
+	trxRoute.GET("/purchase/:trx_id", txnController.Purchase)
 	trxRoute.GET("/:user_id/history", txnController.TransactionHistory)
 
 	walletRoute := v1.Group("/wallets")
