@@ -39,10 +39,8 @@ type (
 		Price         int64     `json:"price"`
 	}
 
-	BuyPulsaRequest struct {
-		UserID      string `json:"user_id"`
-		ProductCode string `json:"product_code"`
-		CustomerNo  string `json:"customer_no"`
+	PurchaseRequest struct {
+		TrxID string `param:"trx_id"`
 	}
 
 	TransactionHistoryRequest struct {
