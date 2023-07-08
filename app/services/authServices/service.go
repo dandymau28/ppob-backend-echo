@@ -33,16 +33,19 @@ func NewAuthService(config *config.SystemConfig, authRepository authRepository.A
 }
 
 func (s *authService) Login(request dto.LoginRequest) (dto.LoginResponse, error) {
+	s.Config.Logger.Infof("Login request for %s", request.Username)
 	credential := s.authRepository.GetUserCredentialByUsername(request.Username)
 	emptyResponse := dto.LoginResponse{}
 
 	if (dto.UserCredential{}) == credential {
+		s.Config.Logger.Warnf("Failed login for %s: no username found", request.Username)
 		return emptyResponse, errors.New("username/password mismatch")
 	}
 
 	err := bcrypt.CompareHashAndPassword([]byte(credential.Password), []byte(request.Password))
 
 	if err != nil {
+		s.Config.Logger.Warnf("Failed login for %s: failed compare password", request.Username)
 		return emptyResponse, errors.New("username/password mismatch")
 	}
 
@@ -59,6 +62,7 @@ func (s *authService) Login(request dto.LoginRequest) (dto.LoginResponse, error)
 	t, err := token.SignedString([]byte(s.Config.JwtSecret))
 
 	if err != nil {
+		s.Config.Logger.Warnf("Failed login for %s: failed to sign token %+v", request.Username, err)
 		return emptyResponse, errors.New("failed to sign token")
 	}
 
@@ -74,6 +78,7 @@ func (s *authService) Login(request dto.LoginRequest) (dto.LoginResponse, error)
 }
 
 func (s *authService) Register(request dto.RegisterRequest) (dto.RegisterResponse, error) {
+	s.Config.Logger.Infof("Registering for %s", request.Username)
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
 
 	uuid := uuid.New()
@@ -87,6 +92,7 @@ func (s *authService) Register(request dto.RegisterRequest) (dto.RegisterRespons
 	response := dto.RegisterResponse{}
 
 	if err != nil {
+		s.Config.Logger.Warnf("Error registering for %s: error on hashing password", request.Username)
 		return response, errors.New("failed to register")
 	}
 
@@ -95,12 +101,14 @@ func (s *authService) Register(request dto.RegisterRequest) (dto.RegisterRespons
 	err = s.authRepository.SaveUser(&user)
 
 	if err != nil {
+		s.Config.Logger.Warnf("Error registering for %s: error on saving user", request.Username)
 		return response, errors.New("failed to register")
 	}
 
 	err = s.authRepository.CreateWallet(&user)
 
 	if err != nil {
+		s.Config.Logger.Warnf("Error registering for %s: error on creating wallet", request.Username)
 		return response, errors.New("failed to register")
 	}
 

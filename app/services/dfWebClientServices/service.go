@@ -11,13 +11,11 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/labstack/echo/v4"
 )
 
 type (
 	dfWebClient struct {
-		Config  *config.SystemConfig
-		context echo.Context
+		Config *config.SystemConfig
 	}
 
 	DfWebClient interface {
@@ -65,7 +63,7 @@ func (s *dfWebClient) Topup(payload dto.BuyProductPayload) (dto.BuyProductRespon
 
 	resp, err := client.R().SetBody(payload).Post(s.Config.DigiflazzBaseUrl + s.Config.DigiflazzTopupPath)
 	if err != nil {
-		s.context.Logger().Warnf("failed to call API: %v", err)
+		s.Config.Logger.Warnf("failed to call API: %v", err)
 		return response, err
 	}
 
