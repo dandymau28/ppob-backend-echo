@@ -14,6 +14,7 @@ import (
 	"ppob-backend/config"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"gorm.io/gorm"
@@ -62,6 +63,9 @@ func main() {
 		Claims:     &dto.JwtCustomClaims{},
 		SigningKey: []byte(configSystem.JwtSecret),
 	}
+
+	e.Use(echoprometheus.NewMiddleware("ppob"))
+	e.GET("/metrics", echoprometheus.NewHandler())
 
 	//webhook handler
 	api.POST("/webhook", txnController.Webhook)
