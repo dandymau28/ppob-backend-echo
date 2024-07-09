@@ -1,10 +1,8 @@
 package model
 
-import "gorm.io/gorm"
-
 type Wallet struct {
-	gorm.Model
-	UserID  uint64
+	BaseModel
+	UserID  string
 	Balance int64
-	Uuid    string
+	Uuid    string `gorm:"primarykey"`
 }

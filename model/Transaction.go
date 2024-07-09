@@ -1,9 +1,7 @@
 package model
 
-import "gorm.io/gorm"
-
 type Transaction struct {
-	gorm.Model
+	BaseModel
 	RefId           string
 	UserId          string
 	TransactionId   string
@@ -17,4 +15,5 @@ type Transaction struct {
 	Sn              string
 	BalanceBefore   int64
 	BalanceAfter    int64
+	Uuid            string `gorm:"primarykey"`
 }

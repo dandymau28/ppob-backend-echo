@@ -1,9 +1,7 @@
 package model
 
-import "gorm.io/gorm"
-
 type Product struct {
-	gorm.Model
+	BaseModel
 	ProductName         string
 	Category            string
 	Brand               string
@@ -20,5 +18,5 @@ type Product struct {
 	StartCutOff         string
 	EndCutOff           string
 	Desc                string
-	Uuid                string
+	Uuid                string `gorm:"primarykey"`
 }

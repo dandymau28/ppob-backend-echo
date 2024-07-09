@@ -15,6 +15,7 @@ func ConnectDB(config *SystemConfig) *gorm.DB {
 
 	if err != nil {
 		log.Fatalf("Could not connect to database: %v", err.Error())
+		// log.Printf("Could not connect to database: %v", err.Error())
 	}
 
 	db.AutoMigrate(&model.User{}, &model.Wallet{}, &model.Product{}, &model.Transaction{})

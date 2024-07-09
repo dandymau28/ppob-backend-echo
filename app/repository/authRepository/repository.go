@@ -40,7 +40,7 @@ func (r *authRepository) SaveUser(user *model.User) error {
 
 func (r *authRepository) CreateWallet(user *model.User) error {
 	wallet := model.Wallet{
-		UserID:  uint64(user.ID),
+		UserID:  user.Uuid,
 		Balance: 0,
 		Uuid:    user.Uuid,
 	}
